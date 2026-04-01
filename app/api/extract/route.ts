@@ -3,7 +3,40 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// In-memory rate limiter: max 10 calls per IP per minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 10;
+const WINDOW_MS = 60 * 1000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT) return false;
+
+  entry.count++;
+  return true;
+}
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type SupportedMime = typeof SUPPORTED_TYPES[number];
+
 export async function POST(req: NextRequest) {
+  // Rate limit by IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a minute and try again.' },
+      { status: 429 }
+    );
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -12,17 +45,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Convert file to base64
+    // File size check — must happen before reading into memory
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 5 MB.' },
+        { status: 413 }
+      );
+    }
+
+    // MIME type check
+    if (!SUPPORTED_TYPES.includes(file.type as SupportedMime)) {
+      return NextResponse.json(
+        { error: 'Unsupported file type. Use JPG, PNG, or WebP.' },
+        { status: 400 }
+      );
+    }
+
+    // Convert to base64
     const buffer = await file.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
-
-    // Determine media type
-    const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-    if (!supportedTypes.includes(mimeType)) {
-      return NextResponse.json({ error: 'Unsupported file type. Use JPG, PNG, or WebP.' }, { status: 400 });
-    }
+    const mimeType = file.type as SupportedMime;
 
     const response = await client.messages.create({
       model: 'claude-opus-4-5',
@@ -65,12 +107,26 @@ If you cannot read the receipt clearly, still return your best guess based on wh
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
-
-    // Strip markdown code fences if present
     const cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-    const extracted = JSON.parse(cleaned);
 
-    return NextResponse.json({ success: true, data: extracted });
+    let extracted: Record<string, string>;
+    try {
+      extracted = JSON.parse(cleaned);
+    } catch {
+      return NextResponse.json({ error: 'AI could not parse the receipt. Try a clearer image.' }, { status: 422 });
+    }
+
+    // Validate shape before returning to client
+    const safe = {
+      vendor:      typeof extracted.vendor === 'string'      ? extracted.vendor      : '',
+      date:        typeof extracted.date === 'string'        ? extracted.date        : new Date().toISOString().split('T')[0],
+      amount:      typeof extracted.amount === 'string'      ? extracted.amount      : '0.00',
+      currency:    typeof extracted.currency === 'string'    ? extracted.currency    : 'USD',
+      category:    typeof extracted.category === 'string'    ? extracted.category    : '',
+      description: typeof extracted.description === 'string' ? extracted.description : '',
+    };
+
+    return NextResponse.json({ success: true, data: safe });
   } catch (err) {
     console.error('Extraction error:', err);
     return NextResponse.json({ error: 'Failed to extract receipt data' }, { status: 500 });
