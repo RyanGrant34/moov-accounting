@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 // In-memory rate limiter: max 10 calls per IP per minute
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -37,6 +37,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Check API key is configured
+  if (!ANTHROPIC_API_KEY) {
+    console.error('ANTHROPIC_API_KEY is not set');
+    return NextResponse.json({ error: 'AI service is not configured. Add ANTHROPIC_API_KEY in Vercel environment variables.' }, { status: 503 });
+  }
+
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -67,7 +75,7 @@ export async function POST(req: NextRequest) {
     const mimeType = file.type as SupportedMime;
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 512,
       messages: [
         {
@@ -129,6 +137,10 @@ If you cannot read the receipt clearly, still return your best guess based on wh
     return NextResponse.json({ success: true, data: safe });
   } catch (err) {
     console.error('Extraction error:', err);
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('401') || msg.includes('authentication') || msg.includes('API key')) {
+      return NextResponse.json({ error: 'Invalid API key. Check ANTHROPIC_API_KEY in Vercel settings.' }, { status: 401 });
+    }
     return NextResponse.json({ error: 'Failed to extract receipt data' }, { status: 500 });
   }
 }
