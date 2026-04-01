@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Upload, Sparkles, ArrowUpDown, Search } from 'lucide-react';
 import {
@@ -43,11 +43,13 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('date');
 
-  // Merge saved (user-uploaded) transactions with mock data
-  const allTransactions = useMemo(() => {
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>(mockTransactions);
+
+  useEffect(() => {
     const saved = getSavedTransactions();
+    if (saved.length === 0) return;
     const savedIds = new Set(saved.map(t => t.id));
-    return [...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))];
+    setAllTransactions([...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))]);
   }, []);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 

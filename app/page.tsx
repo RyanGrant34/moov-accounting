@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   TrendingUp,
@@ -39,10 +39,13 @@ function formatUSD(amount: number): string {
 }
 
 export default function OverviewPage() {
-  const transactions = useMemo(() => {
+  const [transactions, setTransactions] = useState(mockTransactions);
+
+  useEffect(() => {
     const saved = getSavedTransactions();
+    if (saved.length === 0) return;
     const savedIds = new Set(saved.map(t => t.id));
-    return [...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))];
+    setTransactions([...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))]);
   }, []);
 
   const totalIncome = getTotalIncome(transactions);
