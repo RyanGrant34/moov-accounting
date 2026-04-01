@@ -4,6 +4,8 @@ import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Upload, Loader2, CheckCircle, Sparkles, FileText, AlertCircle } from 'lucide-react';
 import { financeCategories, financeProjects } from '@/lib/finance-data';
+import { saveTransaction } from '@/lib/transaction-store';
+import type { Transaction } from '@/lib/finance-data';
 
 type UploadState = 'idle' | 'uploading' | 'extracting' | 'done' | 'saved' | 'error';
 
@@ -73,7 +75,25 @@ export default function UploadPage() {
     if (file) runUpload(file);
   }, [runUpload]);
 
-  const handleSave = () => setUploadState('saved');
+  const handleSave = () => {
+    if (!form) return;
+    const tx: Transaction = {
+      id: `tx-${Date.now()}`,
+      date: form.date,
+      vendor: form.vendor,
+      description: form.description,
+      amount: parseFloat(form.amount) || 0,
+      currency: form.currency as Transaction['currency'],
+      amountUSD: parseFloat(form.amount) || 0,
+      type: 'expense',
+      status: 'cleared',
+      category: form.category || 'other',
+      project: form.project || '',
+      aiExtracted: true,
+    };
+    saveTransaction(tx);
+    setUploadState('saved');
+  };
 
   const handleReset = () => {
     setUploadState('idle');

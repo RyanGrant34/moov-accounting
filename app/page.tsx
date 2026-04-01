@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import {
   TrendingUp,
@@ -18,7 +19,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import {
-  transactions,
+  transactions as mockTransactions,
   getTotalExpenses,
   getTotalIncome,
   getNetCashflow,
@@ -26,6 +27,7 @@ import {
   getMonthlyTrend,
   financeCategories,
 } from '@/lib/finance-data';
+import { getSavedTransactions } from '@/lib/transaction-store';
 
 function formatUSD(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -37,6 +39,12 @@ function formatUSD(amount: number): string {
 }
 
 export default function OverviewPage() {
+  const transactions = useMemo(() => {
+    const saved = getSavedTransactions();
+    const savedIds = new Set(saved.map(t => t.id));
+    return [...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))];
+  }, []);
+
   const totalIncome = getTotalIncome(transactions);
   const totalExpenses = getTotalExpenses(transactions);
   const netCashflow = getNetCashflow(transactions);

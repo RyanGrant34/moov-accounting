@@ -4,13 +4,14 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Upload, Sparkles, ArrowUpDown, Search } from 'lucide-react';
 import {
-  transactions as allTransactions,
+  transactions as mockTransactions,
   financeCategories,
   financeProjects,
   type Transaction,
   type TransactionType,
   type TransactionStatus,
 } from '@/lib/finance-data';
+import { getSavedTransactions } from '@/lib/transaction-store';
 
 function formatUSD(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -41,6 +42,13 @@ export default function TransactionsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | TransactionStatus>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('date');
+
+  // Merge saved (user-uploaded) transactions with mock data
+  const allTransactions = useMemo(() => {
+    const saved = getSavedTransactions();
+    const savedIds = new Set(saved.map(t => t.id));
+    return [...saved, ...mockTransactions.filter(t => !savedIds.has(t.id))];
+  }, []);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const handleSort = (field: SortField) => {
