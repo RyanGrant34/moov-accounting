@@ -22,7 +22,7 @@ export default function Sidebar() {
             <span className="text-[#09090b] font-bold text-sm">M</span>
           </div>
           <div>
-            <div className="text-white font-semibold text-sm tracking-tight">MOOV</div>
+            <div className="text-white font-semibold text-sm tracking-tight">RG</div>
             <div className="text-[#52525b] text-[10px]">Accounting</div>
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function Sidebar() {
           <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">RG</div>
           <div>
             <div className="text-[#d4d4d8] text-xs font-medium">Ryan Grant</div>
-            <div className="text-[#52525b] text-[10px]">MOOV Finance</div>
+            <div className="text-[#52525b] text-[10px]">Finance</div>
           </div>
         </div>
       </div>

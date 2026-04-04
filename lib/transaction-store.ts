@@ -2,7 +2,7 @@
 
 import { type Transaction } from './finance-data';
 
-const KEY = 'moov_transactions';
+const KEY = 'rg_transactions';
 
 export function getSavedTransactions(): Transaction[] {
   if (typeof window === 'undefined') return [];

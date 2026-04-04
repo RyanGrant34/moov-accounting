@@ -6,8 +6,8 @@ import Sidebar from "@/components/Sidebar";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MOOV Accounting",
-  description: "AI-powered expense and revenue tracking for MOOV",
+  title: "Accounting Dashboard",
+  description: "AI-powered expense and revenue tracking",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
